@@ -1,0 +1,19 @@
+///$tab ** DO NOT USE ** CALL VOLUME _CHECK
+// qualify *;
+// CALL_CHECK:
+// NoConcatenate
+// Load
+//     call_id
+//     ,territory_id as territory_cycle_name
+//     ,account_id
+//     ,glpg_call_channel
+//     ,'$(vCycleName)' as Name
+//     ,call_date
+//     ,last_modified_date
+// FROM 
+// 	[$(vQVD_Transform_Path)/t_call_veeva.qvd](qvd)
+// Where	
+// 	call_date >= '$(vStartDate)' and call_date <= '$(vEndDate)'
+// //      and country_id  =  '$(vCountry)'
+// ;
+// Unqualify *;

@@ -1,0 +1,27 @@
+///$tab MCCP CALCS
+/*********
+Calculate the capped activity based on the maximum goal per account level
+*********/
+
+t_cycle_plan_calcs:
+Load
+	Name_short,
+    territory_cycle_name,
+    account_id,
+    sum(aggr_MCCP_goals) as aggr_MCCP_goals,
+    sum(weighted_calls) as calls,
+    sum(weighted_calls) - sum(aggr_MCCP_goals)   as MCCP_var,
+    sum(if(weighted_calls>aggr_MCCP_goals,aggr_MCCP_goals,weighted_calls)) as capped_calls,
+    sum(if(weighted_calls>=aggr_MCCP_goals,1,0)) as MCCP_complete,
+    sum(if(weighted_calls>0,1,0)) as mccp_coverage
+Resident
+cycle_plan_calcs_temp
+group by Name_short, territory_cycle_name, account_id
+;
+
+drop table cycle_plan_calcs_temp;
+
+Loop;
+
+
+Store t_cycle_plan_calcs into lib://Customer View/1.QVD/51.Transform_vAlign/t_cycle_plan_calcs.qvd(qvd);

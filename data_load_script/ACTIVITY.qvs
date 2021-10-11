@@ -1,0 +1,90 @@
+///$tab ACTIVITY
+/********
+CALLS
+Call activity at channel level to apply channel weighting
+********/
+
+channel_weighted_calls:
+Load
+	Name,
+    territory_cycle_name,
+    account_id,
+    glpg_call_channel,
+    weight,
+	(weight * calls) * channel_criteria as weighted_calls,
+//	(weight * calls) as weighted_calls
+;
+LOAD
+	*
+    ,ApplyMap('mapping_weighting',Name & ' | ' &glpg_call_channel,1) as weight
+    ,ApplyMap('channel_mix','$(vCycleName)' & ' | ' & glpg_call_channel,0) as channel_criteria
+;    
+LOAD
+    count(call_id) as calls
+    ,territory_id as territory_cycle_name
+    ,account_id
+    ,glpg_call_channel
+    ,'$(vCycleName)' as Name
+FROM 
+	[$(vQVD_Transform_Path)/t_call_veeva.qvd](qvd)
+Where	
+	call_date >= '$(vStartDate)' and call_date <= '$(vEndDate)'
+//       and country_id  =  '$(vCountry)'
+group by	territory_id, account_id,glpg_call_channel
+;
+
+
+
+/************
+Addition of VAE into a single activity table at channel level
+For Germany, only opened emails are counted, for Italy it is counted as sent
+
+************/
+
+Concatenate (channel_weighted_calls)
+
+LOAD
+	Name,
+    territory_cycle_name,
+    account_id,
+    'VAE' AS glpg_call_channel,
+    weight,
+	(if(t_sent_email.Country = 'DE',opened_emails,emails) * weight) * channel_criteria as weighted_calls    
+// 	if(t_sent_email.Country = 'DE',opened_emails,emails) * weight as weighted_calls
+;    
+LOAD
+   	ApplyMap('mapping_weighting','$(vCycleName)' & ' | ' &'VAE',1) as weight
+    ,ApplyMap('channel_mix','$(vCycleName)' & ' | ' & 'VAE',0) as channel_criteria   
+    ,t_sent_email.Account_vod__c as account_id
+    ,t_sent_email.Territory_vod__c as territory_cycle_name
+	,count(t_sent_email.email_id) as emails
+    ,sum(t_sent_email.Opened_vod__c) as opened_emails
+   ,'$(vCycleName)' as Name
+    ,ApplyMap('channel_mix','$(vCycleName)' & ' | ' & 'VAE',0) as chanel_criteria
+    ,t_sent_email.Country
+FROM 
+	[$(vQVD_Transform_Path)/t_sent_email.qvd](qvd)
+Where	
+	DATE(floor(t_sent_email.Email_Sent_Date_vod__c),'DD/MM/YYYY') >= '$(vStartDate)' and DATE(floor(t_sent_email.Email_Sent_Date_vod__c),'DD/MM/YYYY') <= '$(vEndDate)'
+//      and t_sent_email.Country  =  '$(vCountry)' 
+	and t_sent_email.Status_vod__c = 'Delivered_vod'
+
+group by	t_sent_email.Territory_vod__c, t_sent_email.Account_vod__c, t_sent_email.Country
+;
+
+// Aggregate to account level, no channel to joing back to Cycle Plan (due to goals only listed against one channel in MCCP setup)
+
+left join (cycle_plan_calcs_temp)
+Load
+//	Name,
+	territory_cycle_name,
+    account_id,
+    sum(weighted_calls) as weighted_calls
+Resident
+channel_weighted_calls
+group by 
+//Name, 
+territory_cycle_name, account_id,
+;
+
+drop table channel_weighted_calls;

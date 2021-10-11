@@ -1,0 +1,30 @@
+///$tab MCCP
+Set vQVD_Transform_Path 	= 'lib://Customer View/1.QVD/51.Transform_vAlign/';
+
+
+cycle_plan_calcs_temp_temp:
+NoConcatenate
+Load
+	*,
+   left(cycle_name,len(cycle_name)-(len(SubField(cycle_name,'_',5)))) as Name_short
+FROM 
+	[$(vQVD_Transform_Path)/t_mc_cycle_plan.qvd]
+(qvd)
+// where left(cycle_name,2) =  '$(vCountry)'
+;
+
+
+cycle_plan_calcs_temp:
+NoConcatenate
+Load
+	Name_short,
+    account_id,
+    cycle_territory_name as aggr_cycle_territory_name,
+ 	max(mccp_account_goals) as aggr_MCCP_goals,
+    territory_cycle_name
+Resident cycle_plan_calcs_temp_temp
+where Name_short = '$(vCycleName)'
+group by account_id,cycle_territory_name,territory_cycle_name,Name_short
+;
+
+drop table cycle_plan_calcs_temp_temp;

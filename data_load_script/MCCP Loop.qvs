@@ -1,0 +1,37 @@
+///$tab MCCP Loop
+cycle_details_temp:
+LOAD
+    left(Name,len(Name)-(len(SubField(Name,'_',5)))) as Name_short
+    ,min(Start_Date_vod__c) as Start_Date_vod__c
+	,min(End_Date_vod__c) as End_Date_vod__c    
+FROM [lib://Customer View/1.QVD/5.Migration/e_v_mc_cycle.qvd]
+(qvd)
+// WHERE left(Name,2) = '$(vCountry)'
+group by left(Name,len(Name)-(len(SubField(Name,'_',5))))
+;
+
+cycle_details:
+LOAD
+	Name_short
+    ,Start_Date_vod__c
+	,End_Date_vod__c    
+    ,rowno() as cycle_row
+RESIDENT
+cycle_details_temp
+;
+
+drop table cycle_details_temp;
+
+Let vCycles		= NoOfRows('cycle_details');
+Let i = $(vCycles);
+Do while i > 0
+Let i = $(i)  - 1 ;
+
+
+Let vCycleName	= Peek('Name_short',$(i),'cycle_details');
+Let vStartDate 	= num(Peek('Start_Date_vod__c',$(i),'cycle_details'));
+Let vEndDate 	= num(Peek('End_Date_vod__c',$(i),'cycle_details'));
+
+
+
+trace '$(vCycleName)' activity for period '$(vStartDate)' to '$(vEndDate)' ;
